@@ -1,0 +1,11 @@
+---
+# File utama untuk menjalankan seluruh proses deployment.
+# Jalankan:
+# ansible-playbook site.yml
+
+- import_playbook: playbooks/00_control_node.yml
+- import_playbook: playbooks/01_provision_gcp.yml
+- import_playbook: playbooks/02_prepare_hosts.yml
+- import_playbook: playbooks/03_deploy_database.yml
+- import_playbook: playbooks/04_deploy_web.yml
+- import_playbook: playbooks/05_deploy_dns.yml

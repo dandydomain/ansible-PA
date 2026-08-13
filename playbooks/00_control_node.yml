@@ -1,0 +1,83 @@
+---
+- name: Persiapan Control Node dan SSH
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  vars_prompt:
+    - name: db_password_input
+      prompt: "Masukkan password untuk user database appuser"
+      private: true
+
+  tasks:
+    - name: Simpan password database untuk play berikutnya
+      ansible.builtin.set_fact:
+        db_password_runtime: "{{ db_password_input }}"
+      no_log: true
+
+    - name: Pastikan direktori SSH tersedia
+      ansible.builtin.file:
+        path: "{{ ssh_directory }}"
+        state: directory
+        mode: "0700"
+
+    - name: Buat SSH key RSA 4096 jika belum tersedia
+      ansible.builtin.command:
+        argv:
+          - ssh-keygen
+          - -t
+          - rsa
+          - -b
+          - "4096"
+          - -f
+          - "{{ ssh_private_key }}"
+          - -C
+          - "{{ ansible_vm_user }}"
+          - -N
+          - ""
+      args:
+        creates: "{{ ssh_private_key }}"
+
+    - name: Pastikan permission private key SSH benar
+      ansible.builtin.file:
+        path: "{{ ssh_private_key }}"
+        state: file
+        mode: "0600"
+
+    - name: Periksa keberadaan public key SSH
+      ansible.builtin.stat:
+        path: "{{ ssh_public_key }}"
+      register: ssh_public_key_stat
+
+    - name: Buat kembali public key dari private key jika public key tidak tersedia
+      ansible.builtin.shell: |
+        set -e
+        ssh-keygen -y -f "{{ ssh_private_key }}" > "{{ ssh_public_key }}"
+        chmod 0644 "{{ ssh_public_key }}"
+      args:
+        executable: /bin/bash
+      when: not ssh_public_key_stat.stat.exists
+
+    - name: Atur project aktif Google Cloud
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - config
+          - set
+          - project
+          - "{{ project_id }}"
+      changed_when: false
+
+    - name: Aktifkan Compute Engine API
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - services
+          - enable
+          - compute.googleapis.com
+          - "--project={{ project_id }}"
+          - --quiet
+      changed_when: false

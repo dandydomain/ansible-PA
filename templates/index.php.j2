@@ -1,0 +1,71 @@
+<?php
+require '/etc/dandy-app/database.php';
+$db = @new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
+?>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Deployment Ansible</title>
+</head>
+
+<body>
+
+    <h1>Web Server berhasil dikonfigurasi menggunakan Ansible</h1>
+
+    <p>
+        Hostname:
+        <?php echo htmlspecialchars(gethostname()); ?>
+    </p>
+
+    <?php if ($db->connect_error): ?>
+
+        <p>Koneksi Database Gagal</p>
+
+    <?php else: ?>
+
+        <p>Koneksi Database Berhasil</p>
+
+        <table border="1" cellpadding="8">
+
+            <tr>
+                <th>ID</th>
+                <th>Nama Server</th>
+                <th>Status</th>
+            </tr>
+
+            <?php
+            $result = $db->query(
+                'SELECT id, nama_server, status_layanan
+                 FROM status_server
+                 ORDER BY id'
+            );
+            ?>
+
+            <?php while ($row = $result->fetch_assoc()): ?>
+
+                <tr>
+                    <td>
+                        <?php echo htmlspecialchars($row['id']); ?>
+                    </td>
+
+                    <td>
+                        <?php echo htmlspecialchars($row['nama_server']); ?>
+                    </td>
+
+                    <td>
+                        <?php echo htmlspecialchars($row['status_layanan']); ?>
+                    </td>
+                </tr>
+
+            <?php endwhile; ?>
+
+        </table>
+
+        <?php $db->close(); ?>
+
+    <?php endif; ?>
+
+</body>
+</html>

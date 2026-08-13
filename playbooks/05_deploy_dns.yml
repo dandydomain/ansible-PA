@@ -1,0 +1,54 @@
+---
+- name: Deployment DNS Server
+  hosts: dnsservers
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Instal BIND9
+      ansible.builtin.apt:
+        name: bind9
+        state: present
+        update_cache: true
+
+    - name: Konfigurasi opsi BIND9
+      ansible.builtin.template:
+        src: ../templates/named.conf.options.j2
+        dest: /etc/bind/named.conf.options
+        owner: root
+        group: bind
+        mode: "0644"
+      notify: Restart BIND9
+
+    - name: Daftarkan zone DNS
+      ansible.builtin.template:
+        src: ../templates/named.conf.local.j2
+        dest: /etc/bind/named.conf.local
+        owner: root
+        group: bind
+        mode: "0644"
+      notify: Restart BIND9
+
+    - name: Buat record DNS untuk seluruh layanan
+      ansible.builtin.template:
+        src: ../templates/db.domain.j2
+        dest: "/etc/bind/db.{{ domain_name }}"
+        owner: root
+        group: bind
+        mode: "0644"
+      notify: Restart BIND9
+
+    - name: Aktifkan BIND9
+      ansible.builtin.service:
+        name: bind9
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart BIND9
+      ansible.builtin.service:
+        name: bind9
+        state: restarted

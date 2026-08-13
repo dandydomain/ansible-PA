@@ -1,0 +1,66 @@
+---
+- name: Deployment Web Server
+  hosts: webservers
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  vars:
+    db_password: "{{ hostvars['localhost']['db_password_runtime'] }}"
+    db_private_ip: "{{ hostvars['vm-db-1']['private_ip'] }}"
+
+  tasks:
+    - name: Instal Apache dan PHP
+      ansible.builtin.apt:
+        name:
+          - apache2
+          - libapache2-mod-php
+          - php-mysql
+        state: present
+        update_cache: true
+
+    - name: Buat direktori konfigurasi aplikasi
+      ansible.builtin.file:
+        path: /etc/dandy-app
+        state: directory
+        owner: root
+        group: www-data
+        mode: "0750"
+
+    - name: Simpan konfigurasi database
+      ansible.builtin.template:
+        src: ../templates/database.php.j2
+        dest: /etc/dandy-app/database.php
+        owner: root
+        group: www-data
+        mode: "0640"
+      no_log: true
+      notify: Restart Apache
+
+    - name: Buat halaman web aplikasi
+      ansible.builtin.template:
+        src: ../templates/index.php.j2
+        dest: /var/www/html/index.php
+        owner: www-data
+        group: www-data
+        mode: "0644"
+      notify: Restart Apache
+
+    - name: Hapus halaman bawaan Apache
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Aktifkan Apache
+      ansible.builtin.service:
+        name: apache2
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted

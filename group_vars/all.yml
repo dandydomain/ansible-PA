@@ -1,0 +1,65 @@
+---
+# ============================================================
+# KONFIGURASI GOOGLE CLOUD PLATFORM
+# ============================================================
+project_id: projek-akhir-ansible
+zone: asia-southeast2-a
+network_name: default
+
+# ============================================================
+# SPESIFIKASI VIRTUAL MACHINE
+# ============================================================
+machine_type: e2-medium
+disk_size_gb: 30
+image_family: ubuntu-2204-lts
+image_project: ubuntu-os-cloud
+
+# ============================================================
+# KONFIGURASI SSH
+# ============================================================
+ansible_vm_user: dandy
+ssh_directory: "{{ lookup('env', 'HOME') }}/.ssh"
+ssh_private_key: "{{ ssh_directory }}/google_compute_engine"
+ssh_public_key: "{{ ssh_private_key }}.pub"
+
+# ============================================================
+# INVENTORY
+# ============================================================
+inventory_directory: "{{ playbook_dir }}/../inventory"
+inventory_output: "{{ inventory_directory }}/hosts.ini"
+
+# ============================================================
+# DAFTAR VIRTUAL MACHINE
+# ============================================================
+vm_list:
+  - name: vm-web-1
+    group: webservers
+    tag: web-server
+    role: web
+
+  - name: vm-web-2
+    group: webservers
+    tag: web-server
+    role: web
+
+  - name: vm-dns-1
+    group: dnsservers
+    tag: dns-server
+    role: dns
+
+  - name: vm-db-1
+    group: dbservers
+    tag: database-server
+    role: database
+
+# ============================================================
+# DATABASE
+# ============================================================
+db_name: appdb
+db_user: appuser
+
+# ============================================================
+# DNS
+# ============================================================
+domain_name: dandy.test
+dns_serial: "2026072901"

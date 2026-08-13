@@ -1,0 +1,23 @@
+$TTL 604800
+
+@   IN  SOA ns1.{{ domain_name }}. admin.{{ domain_name }}. (
+        {{ dns_serial }}
+        604800
+        86400
+        2419200
+        604800
+)
+
+@       IN  NS  ns1.{{ domain_name }}.
+
+ns1     IN  A   {{ hostvars['vm-dns-1']['private_ip'] }}
+
+web1    IN  A   {{ hostvars['vm-web-1']['private_ip'] }}
+
+web2    IN  A   {{ hostvars['vm-web-2']['private_ip'] }}
+
+db      IN  A   {{ hostvars['vm-db-1']['private_ip'] }}
+
+www     IN  A   {{ hostvars['vm-web-1']['private_ip'] }}
+
+www     IN  A   {{ hostvars['vm-web-2']['private_ip'] }}

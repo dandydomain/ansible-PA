@@ -1,0 +1,36 @@
+---
+- name: Menunggu Virtual Machine Siap Dikonfigurasi
+  hosts: webservers:dnsservers:dbservers
+  gather_facts: false
+
+  tasks:
+    - name: Tunggu koneksi SSH tersedia
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 300
+
+
+- name: Persiapan Repositori Paket Ubuntu
+  hosts: webservers:dnsservers:dbservers
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Instal pengelola repositori Ubuntu
+      ansible.builtin.apt:
+        name: software-properties-common
+        state: present
+        update_cache: true
+
+    - name: Aktifkan repositori Universe
+      ansible.builtin.command:
+        argv:
+          - add-apt-repository
+          - --yes
+          - universe
+      changed_when: false
+
+    - name: Perbarui cache paket setelah repositori Universe aktif
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 86400

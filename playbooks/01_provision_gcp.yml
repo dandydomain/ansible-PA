@@ -1,0 +1,121 @@
+---
+- name: Provisioning Virtual Machine pada Google Cloud Platform
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Periksa keberadaan virtual machine
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - instances
+          - describe
+          - "{{ item.name }}"
+          - "--project={{ project_id }}"
+          - "--zone={{ zone }}"
+          - --format=value(name)
+      loop: "{{ vm_list }}"
+      register: vm_check
+      failed_when: false
+      changed_when: false
+
+    - name: Buat virtual machine yang belum tersedia
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - instances
+          - create
+          - "{{ item.item.name }}"
+          - "--project={{ project_id }}"
+          - "--zone={{ zone }}"
+          - "--machine-type={{ machine_type }}"
+          - "--image-family={{ image_family }}"
+          - "--image-project={{ image_project }}"
+          - "--boot-disk-size={{ disk_size_gb }}GB"
+          - "--network={{ network_name }}"
+          - "--tags={{ item.item.tag }}"
+          - "--labels=role={{ item.item.role }},managed-by=ansible"
+          - "--metadata=ssh-keys={{ ansible_vm_user }}:{{ lookup('file', ssh_public_key) | trim }}"
+          - --quiet
+      loop: "{{ vm_check.results }}"
+      when: item.rc != 0
+
+    - name: Periksa firewall HTTP untuk Web Server
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - firewall-rules
+          - describe
+          - allow-http-web
+          - "--project={{ project_id }}"
+          - --format=value(name)
+      register: http_firewall_check
+      failed_when: false
+      changed_when: false
+
+    - name: Buat firewall HTTP untuk Web Server
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - firewall-rules
+          - create
+          - allow-http-web
+          - "--project={{ project_id }}"
+          - "--network={{ network_name }}"
+          - --direction=INGRESS
+          - --action=ALLOW
+          - --rules=tcp:80
+          - --source-ranges=0.0.0.0/0
+          - --target-tags=web-server
+          - --quiet
+      when: http_firewall_check.rc != 0
+
+    - name: Ambil informasi virtual machine
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - instances
+          - describe
+          - "{{ item.name }}"
+          - "--project={{ project_id }}"
+          - "--zone={{ zone }}"
+          - --format=json
+      loop: "{{ vm_list }}"
+      register: vm_details
+      changed_when: false
+
+    - name: Masukkan virtual machine ke inventory sementara
+      ansible.builtin.add_host:
+        name: "{{ item.item.name }}"
+        groups: "{{ item.item.group }}"
+        ansible_host: "{{ (item.stdout | from_json).networkInterfaces[0].accessConfigs[0].natIP }}"
+        private_ip: "{{ (item.stdout | from_json).networkInterfaces[0].networkIP }}"
+        ansible_user: "{{ ansible_vm_user }}"
+        ansible_ssh_private_key_file: "{{ ssh_private_key }}"
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_ssh_common_args: >-
+          -o StrictHostKeyChecking=no
+          -o UserKnownHostsFile=/dev/null
+      loop: "{{ vm_details.results }}"
+      changed_when: false
+
+    - name: Buat direktori inventory Ansible
+      ansible.builtin.file:
+        path: "{{ inventory_directory }}"
+        state: directory
+        mode: "0755"
+
+    - name: Simpan inventory Ansible ke file
+      ansible.builtin.template:
+        src: ../templates/hosts.ini.j2
+        dest: "{{ inventory_output }}"
+        mode: "0644"

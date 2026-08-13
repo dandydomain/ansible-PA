@@ -1,0 +1,30 @@
+CREATE DATABASE IF NOT EXISTS `{{ db_name }}`
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE `{{ db_name }}`;
+
+CREATE TABLE IF NOT EXISTS status_server (
+    id INT PRIMARY KEY,
+    nama_server VARCHAR(50) NOT NULL,
+    status_layanan VARCHAR(20) NOT NULL
+);
+
+INSERT INTO status_server (id, nama_server, status_layanan) VALUES
+    (1, 'Web Server 1', 'Aktif'),
+    (2, 'Web Server 2', 'Aktif')
+ON DUPLICATE KEY UPDATE
+    nama_server = VALUES(nama_server),
+    status_layanan = VALUES(status_layanan);
+
+{% for web_host in groups['webservers'] %}
+CREATE USER IF NOT EXISTS '{{ db_user }}'@'{{ hostvars[web_host]['private_ip'] }}'
+IDENTIFIED BY '{{ db_password | replace("'", "''") }}';
+
+ALTER USER '{{ db_user }}'@'{{ hostvars[web_host]['private_ip'] }}'
+IDENTIFIED BY '{{ db_password | replace("'", "''") }}';
+
+GRANT SELECT ON `{{ db_name }}`.*
+TO '{{ db_user }}'@'{{ hostvars[web_host]['private_ip'] }}';
+{% endfor %}
+
+FLUSH PRIVILEGES;
