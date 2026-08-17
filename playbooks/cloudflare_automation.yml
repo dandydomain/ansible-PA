@@ -1,0 +1,114 @@
+---
+- name: Update DNS Cloudflare
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  vars:
+    cloudflare_api_token: "{{ lookup('env', 'CLOUDFLARE_API_TOKEN') }}"
+    dns_server_public_ip: "{{ hostvars['vm-dns-1']['ansible_host'] }}"
+
+  tasks:
+
+    - name: Pastikan Cloudflare API Token tersedia
+      ansible.builtin.assert:
+        that:
+          - cloudflare_api_token | length > 0
+        fail_msg: >-
+          CLOUDFLARE_API_TOKEN belum tersedia.
+          Jalankan export CLOUDFLARE_API_TOKEN='token' terlebih dahulu.
+
+    - name: Cari Zone ID Cloudflare
+      ansible.builtin.uri:
+        url: >-
+          https://api.cloudflare.com/client/v4/zones?name={{ cloudflare_zone }}
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: application/json
+        return_content: true
+        status_code: 200
+      register: cloudflare_zone_response
+      no_log: true
+
+    - name: Pastikan zone Cloudflare ditemukan
+      ansible.builtin.assert:
+        that:
+          - cloudflare_zone_response.json.success
+          - cloudflare_zone_response.json.result | length > 0
+        fail_msg: "Zone {{ cloudflare_zone }} tidak ditemukan di Cloudflare."
+
+    - name: Simpan Zone ID Cloudflare
+      ansible.builtin.set_fact:
+        cloudflare_zone_id: "{{ cloudflare_zone_response.json.result[0].id }}"
+
+    - name: Cari record ns1 pada Cloudflare
+      ansible.builtin.uri:
+        url: >-
+          https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ cloudflare_ns_record }}
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: application/json
+        return_content: true
+        status_code: 200
+      register: cloudflare_dns_response
+      no_log: true
+
+    - name: Pastikan record ns1 ditemukan
+      ansible.builtin.assert:
+        that:
+          - cloudflare_dns_response.json.success
+          - cloudflare_dns_response.json.result | length > 0
+        fail_msg: >-
+          Record A {{ cloudflare_ns_record }} belum tersedia
+          pada Cloudflare.
+
+    - name: Simpan informasi record ns1
+      ansible.builtin.set_fact:
+        cloudflare_dns_record_id: "{{ cloudflare_dns_response.json.result[0].id }}"
+        cloudflare_current_ip: "{{ cloudflare_dns_response.json.result[0].content }}"
+
+    - name: Tampilkan status IP DNS
+      ansible.builtin.debug:
+        msg:
+          - "IP Cloudflare saat ini : {{ cloudflare_current_ip }}"
+          - "IP vm-dns-1 terbaru    : {{ dns_server_public_ip }}"
+
+    - name: Update IP ns1 pada Cloudflare jika berubah
+      ansible.builtin.uri:
+        url: >-
+          https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ cloudflare_dns_record_id }}
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          type: A
+          name: "{{ cloudflare_ns_record }}"
+          content: "{{ dns_server_public_ip }}"
+          ttl: 60
+          proxied: false
+        return_content: true
+        status_code: 200
+      register: cloudflare_update
+      when: cloudflare_current_ip != dns_server_public_ip
+      no_log: true
+
+    - name: Informasikan perubahan DNS Cloudflare
+      ansible.builtin.debug:
+        msg: >-
+          Record {{ cloudflare_ns_record }} diperbarui dari
+          {{ cloudflare_current_ip }} menjadi {{ dns_server_public_ip }}.
+      when: cloudflare_current_ip != dns_server_public_ip
+
+    - name: Informasikan DNS Cloudflare sudah sesuai
+      ansible.builtin.debug:
+        msg: >-
+          Record {{ cloudflare_ns_record }} sudah menggunakan
+          {{ dns_server_public_ip }}. Tidak ada perubahan.
+      when: cloudflare_current_ip == dns_server_public_ip

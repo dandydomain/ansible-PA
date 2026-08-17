@@ -69,3 +69,7 @@ letsencrypt_email: "dandyharip@gmail.com"
 web_hostnames:
   vm-web-1: web1
   vm-web-2: web2
+
+cloudflare_zone: dandydomain.my.id
+cloudflare_ns_record: ns1.dandydomain.my.id
+cloudflare_delegated_zone: pa.dandydomain.my.id
