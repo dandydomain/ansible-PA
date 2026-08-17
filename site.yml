@@ -9,3 +9,4 @@
 - import_playbook: playbooks/03_deploy_database.yml
 - import_playbook: playbooks/04_deploy_web.yml
 - import_playbook: playbooks/05_deploy_dns.yml
+- import_playbook: playbooks/06_enable_https.yml

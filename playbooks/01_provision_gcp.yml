@@ -119,3 +119,35 @@
         src: ../templates/hosts.ini.j2
         dest: "{{ inventory_output }}"
         mode: "0644"
+
+    - name: Periksa firewall DNS
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - firewall-rules
+          - describe
+          - allow-dns
+          - "--project={{ project_id }}"
+          - --format=value(name)
+      register: dns_firewall_check
+      failed_when: false
+      changed_when: false
+
+    - name: Buat firewall DNS
+      ansible.builtin.command:
+        argv:
+          - gcloud
+          - compute
+          - firewall-rules
+          - create
+          - allow-dns
+          - "--project={{ project_id }}"
+          - "--network={{ network_name }}"
+          - --direction=INGRESS
+          - --action=ALLOW
+          - --rules=tcp:53,udp:53
+          - --source-ranges=0.0.0.0/0
+          - --target-tags=dns-server
+          - --quiet
+      when: dns_firewall_check.rc != 0

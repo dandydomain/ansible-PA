@@ -10,8 +10,11 @@
   vars:
     db_password: "{{ hostvars['localhost']['db_password_runtime'] }}"
     db_private_ip: "{{ hostvars['vm-db-1']['private_ip'] }}"
+    web_hostname: "{{ web_hostnames[inventory_hostname] }}"
+    web_fqdn: "{{ web_hostname }}.{{ domain_name }}"
 
   tasks:
+
     - name: Instal Apache dan PHP
       ansible.builtin.apt:
         name:
@@ -59,7 +62,46 @@
         state: started
         enabled: true
 
+    - name: Buat konfigurasi VirtualHost HTTP
+      ansible.builtin.template:
+        src: ../templates/web-http.conf.j2
+        dest: "/etc/apache2/sites-available/{{ web_hostname }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Apache
+
+    - name: Aktifkan VirtualHost Web Server
+      ansible.builtin.command:
+        cmd: "a2ensite {{ web_hostname }}.conf"
+      register: enable_site
+      changed_when: "'Enabling site' in enable_site.stdout"
+      notify: Restart Apache
+
+    - name: Nonaktifkan default Apache site
+      ansible.builtin.command:
+        cmd: a2dissite 000-default.conf
+      register: disable_default
+      changed_when: "'Site 000-default disabled' in disable_default.stdout"
+      failed_when: false
+      notify: Restart Apache
+
+    - name: Validasi konfigurasi Apache
+      ansible.builtin.command:
+        cmd: apache2ctl configtest
+      changed_when: false
+
+    - name: Terapkan perubahan konfigurasi Apache
+      ansible.builtin.meta: flush_handlers
+
+    - name: Pastikan Apache tetap aktif
+      ansible.builtin.service:
+        name: apache2
+        state: started
+        enabled: true
+
   handlers:
+
     - name: Restart Apache
       ansible.builtin.service:
         name: apache2

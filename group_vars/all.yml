@@ -61,5 +61,11 @@ db_user: appuser
 # ============================================================
 # DNS
 # ============================================================
-domain_name: dandy.test
+domain_name: pa.dandydomain.my.id
 dns_serial: "2026072901"
+# HTTPS / Let's Encrypt
+letsencrypt_email: "dandyharip@gmail.com"
+
+web_hostnames:
+  vm-web-1: web1
+  vm-web-2: web2

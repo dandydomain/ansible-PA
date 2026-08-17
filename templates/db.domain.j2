@@ -1,23 +1,17 @@
-$TTL 604800
+$TTL 3600
 
-@   IN  SOA ns1.{{ domain_name }}. admin.{{ domain_name }}. (
+@   IN  SOA ns1.dandydomain.my.id. admin.dandydomain.my.id. (
         {{ dns_serial }}
+        3600
+        900
         604800
         86400
-        2419200
-        604800
 )
 
-@       IN  NS  ns1.{{ domain_name }}.
+@       IN  NS  ns1.dandydomain.my.id.
 
-ns1     IN  A   {{ hostvars['vm-dns-1']['private_ip'] }}
+web1    IN  A   {{ hostvars['vm-web-1']['ansible_host'] }}
+web2    IN  A   {{ hostvars['vm-web-2']['ansible_host'] }}
 
-web1    IN  A   {{ hostvars['vm-web-1']['private_ip'] }}
-
-web2    IN  A   {{ hostvars['vm-web-2']['private_ip'] }}
-
-db      IN  A   {{ hostvars['vm-db-1']['private_ip'] }}
-
-www     IN  A   {{ hostvars['vm-web-1']['private_ip'] }}
-
-www     IN  A   {{ hostvars['vm-web-2']['private_ip'] }}
+www     IN  A   {{ hostvars['vm-web-1']['ansible_host'] }}
+www     IN  A   {{ hostvars['vm-web-2']['ansible_host'] }}
